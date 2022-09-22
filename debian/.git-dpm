@@ -1,0 +1,12 @@
+# see git-dpm(1) from git-dpm package
+28050e76f424f0de6b41e2f27a5b1a2e058f56e9
+28050e76f424f0de6b41e2f27a5b1a2e058f56e9
+28050e76f424f0de6b41e2f27a5b1a2e058f56e9
+28050e76f424f0de6b41e2f27a5b1a2e058f56e9
+libpipeline_1.5.4.orig.tar.gz
+9b72fca9ed4bd07c10601e068174cf299a1afa9c
+1040952
+debianTag="debian/%V"
+patchedTag="patched/%V"
+upstreamTag="upstream/%U"
+signature:e95b97662fb90cfbf92b17944801368440b9b378:195:libpipeline_1.5.4.orig.tar.gz.asc

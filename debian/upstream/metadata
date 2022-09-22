@@ -1,0 +1,6 @@
+Bug-Database: https://savannah.nongnu.org/bugs/?group=libpipeline
+Bug-Submit: https://savannah.nongnu.org/bugs/?func=additem&group=libpipeline
+Changelog: https://git.savannah.gnu.org/cgit/libpipeline.git/tree/NEWS
+Repository: https://git.savannah.gnu.org/cgit/libpipeline.git
+Repository-Browse: https://git.savannah.gnu.org/cgit/libpipeline.git
+Security-Contact: Colin Watson <cjwatson@debian.org>
