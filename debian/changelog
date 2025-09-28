@@ -1,3 +1,71 @@
+libpipeline (1.5.8-1) unstable; urgency=medium
+
+  * Standards-Version: 4.7.0 (no changes required).
+  * Apply X-Style: black.
+  * Remove dh_auto_test override, redundant as of debhelper 9.20160306
+    (thanks, Niels Thykier).
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Tue, 27 Aug 2024 12:24:19 +0100
+
+libpipeline (1.5.7-2) unstable; urgency=medium
+
+  * Set upstream metadata fields: Repository.
+  * Update standards version to 4.6.2, no changes needed.
+  * Build-depend on pkgconf rather than pkg-config.
+  * Build-depend on gnulib and rebootstrap from it at build time.
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 29 Mar 2024 19:26:54 +0000
+
+libpipeline (1.5.7-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 13 Nov 2022 22:45:45 +0000
+
+libpipeline (1.5.6-3) unstable; urgency=medium
+
+  * Stop avoiding -fPIC when building tests, since check has provided a
+    check_pic library for a long time now.
+  * Policy version 4.6.1.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 18 Sep 2022 14:07:31 +0100
+
+libpipeline (1.5.6-2) unstable; urgency=medium
+
+  [ Debian Janitor ]
+  * Remove constraints unnecessary since buster:
+    + Build-Depends: Drop versioned constraint on dpkg-dev.
+
+  [ Colin Watson ]
+  * debian/upstream/metadata: Update upstream Git URL.
+  * debian/control: Update Homepage URL.
+  * debian/copyright: Update Source URL.
+
+ -- Colin Watson <cjwatson@debian.org>  Fri, 19 Aug 2022 10:08:39 +0100
+
+libpipeline (1.5.6-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Sun, 24 Apr 2022 00:56:00 +0100
+
+libpipeline (1.5.5-1) unstable; urgency=medium
+
+  * debian/upstream/metadata: Update upstream NEWS location.
+  * New upstream release.
+
+ -- Colin Watson <cjwatson@debian.org>  Mon, 03 Jan 2022 21:45:40 +0000
+
+libpipeline (1.5.4-2) unstable; urgency=medium
+
+  * debian/upstream/metadata: Update for upstream move to GitLab.
+  * Upgrade to debhelper v13.
+  * debian/watch: Upgrade to version 4.
+  * Policy version 4.6.0.
+
+ -- Colin Watson <cjwatson@debian.org>  Wed, 29 Dec 2021 02:18:58 +0000
+
 libpipeline (1.5.4-1) unstable; urgency=medium
 
   * Remove dir_to_symlink maintainer script code, which was only needed for

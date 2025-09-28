@@ -40,6 +40,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "attribute.h"
 #include "dirname.h"
 #include "full-write.h"
 #include "safe-read.h"
@@ -49,6 +50,7 @@
 #include "xvasprintf.h"
 
 #include "error.h"
+#include "fatal.h"
 #include "pipeline-private.h"
 #include "pipeline.h"
 
@@ -67,17 +69,20 @@
 #  endif
 #  ifdef CORRECT_SOCKETPAIR_MODE
 #    define pipe(p)                                                           \
-      (((socketpair (AF_UNIX, SOCK_STREAM, 0, p) < 0) ||                      \
-	(shutdown ((p)[1], SHUT_RD) < 0) || (fchmod ((p)[1], S_IWUSR) < 0) || \
-	(shutdown ((p)[0], SHUT_WR) < 0) || (fchmod ((p)[0], S_IRUSR) < 0))   \
-	       ? -1                                                           \
-	       : 0)
+	    (((socketpair (AF_UNIX, SOCK_STREAM, 0, p) < 0) ||                \
+	      (shutdown ((p)[1], SHUT_RD) < 0) ||                             \
+	      (fchmod ((p)[1], S_IWUSR) < 0) ||                               \
+	      (shutdown ((p)[0], SHUT_WR) < 0) ||                             \
+	      (fchmod ((p)[0], S_IRUSR) < 0))                                 \
+		     ? -1                                                     \
+		     : 0)
 #  else
 #    define pipe(p)                                                           \
-      (((socketpair (AF_UNIX, SOCK_STREAM, 0, p) < 0) ||                      \
-	(shutdown ((p)[1], SHUT_RD) < 0) || (shutdown ((p)[0], SHUT_WR) < 0)) \
-	       ? -1                                                           \
-	       : 0)
+	    (((socketpair (AF_UNIX, SOCK_STREAM, 0, p) < 0) ||                \
+	      (shutdown ((p)[1], SHUT_RD) < 0) ||                             \
+	      (shutdown ((p)[0], SHUT_WR) < 0))                               \
+		     ? -1                                                     \
+		     : 0)
 #  endif
 #endif
 
@@ -172,14 +177,18 @@ pipecmd *pipecmd_new_args (const char *name, ...)
 static char *argstr_get_word (const char **argstr)
 {
 	char *out = NULL;
-	const char *litstart = *argstr;
-	enum
-	{
+	const char *litstart;
+	enum {
 		NONE,
 		SINGLE,
 		DOUBLE
 	} quotemode = NONE;
 
+	/* Skip over any leading whitespace. */
+	while (**argstr == ' ' || **argstr == '\t')
+		++*argstr;
+
+	litstart = *argstr;
 	while (**argstr) {
 		char backslashed[2];
 
@@ -205,17 +214,14 @@ static char *argstr_get_word (const char **argstr)
 		/* Copy any accumulated literal characters. */
 		if (litstart < *argstr) {
 			char *tmp = xstrndup (litstart, *argstr - litstart);
-			out = appendstr (out, tmp, (void *) 0);
+			out = appendstr (out, tmp, nullptr);
 			free (tmp);
 		}
 
 		switch (**argstr) {
 			case ' ':
 			case '\t':
-				/* End of word; skip over extra whitespace. */
-				while (*++*argstr)
-					if (!strchr (" \t", **argstr))
-						break;
+				/* End of word. */
 				return out;
 
 			case '\'':
@@ -242,7 +248,7 @@ static char *argstr_get_word (const char **argstr)
 					return NULL;
 				}
 				backslashed[1] = '\0';
-				out = appendstr (out, backslashed, (void *) 0);
+				out = appendstr (out, backslashed, nullptr);
 				litstart = ++*argstr;
 				break;
 
@@ -260,7 +266,7 @@ static char *argstr_get_word (const char **argstr)
 	/* Copy any accumulated literal characters. */
 	if (litstart < *argstr) {
 		char *tmp = xstrndup (litstart, *argstr - litstart);
-		out = appendstr (out, tmp, (void *) 0);
+		out = appendstr (out, tmp, nullptr);
 		free (tmp);
 	}
 
@@ -274,7 +280,7 @@ pipecmd *pipecmd_new_argstr (const char *argstr)
 
 	arg = argstr_get_word (&argstr);
 	if (!arg)
-		error (FATAL, 0, "badly formed configuration directive: '%s'",
+		fatal (0, "badly formed configuration directive: '%s'",
 		       argstr);
 	if (!strcmp (arg, "exec")) {
 		/* Some old configuration files have "exec command" rather
@@ -286,8 +292,7 @@ pipecmd *pipecmd_new_argstr (const char *argstr)
 		free (arg);
 		arg = argstr_get_word (&argstr);
 		if (!arg)
-			error (FATAL, 0,
-			       "badly formed configuration directive: '%s'",
+			fatal (0, "badly formed configuration directive: '%s'",
 			       argstr);
 	}
 	cmd = pipecmd_new (arg);
@@ -549,7 +554,7 @@ void pipecmd_argstr (pipecmd *cmd, const char *argstr)
 	}
 }
 
-int _GL_ATTRIBUTE_PURE pipecmd_get_nargs (pipecmd *cmd)
+int ATTRIBUTE_PURE pipecmd_get_nargs (pipecmd *cmd)
 {
 	struct pipecmd_process *cmdp;
 
@@ -707,59 +712,58 @@ char *pipecmd_tostring (pipecmd *cmd)
 	if (cmd->cwd_fd >= 0) {
 		char *cwd_fd_str = xasprintf ("%d", cmd->cwd_fd);
 		out = appendstr (out, "(cd <fd ", cwd_fd_str, "> && ",
-		                 (void *) 0);
+		                 nullptr);
 		free (cwd_fd_str);
 	} else if (cmd->cwd)
-		out = appendstr (out, "(cd ", cmd->cwd, " && ", (void *) 0);
+		out = appendstr (out, "(cd ", cmd->cwd, " && ", nullptr);
 
 	for (i = 0; i < cmd->nenv; ++i) {
 		if (cmd->env[i].name)
 			out = appendstr (out, cmd->env[i].name, "=",
 			                 cmd->env[i].value ? cmd->env[i].value
 			                                   : "<unset>",
-			                 " ", (void *) 0);
+			                 " ", nullptr);
 		else
-			out = appendstr (out, "env -i ", (void *) 0);
+			out = appendstr (out, "env -i ", nullptr);
 	}
 
 	switch (cmd->tag) {
 		case PIPECMD_PROCESS: {
 			struct pipecmd_process *cmdp = &cmd->u.process;
 
-			out = appendstr (out, cmd->name, (void *) 0);
+			out = appendstr (out, cmd->name, nullptr);
 			for (i = 1; i < cmdp->argc; ++i)
 				/* TODO: escape_shell()? */
 				out = appendstr (out, " ", cmdp->argv[i],
-				                 (void *) 0);
+				                 nullptr);
 
 			break;
 		}
 
 		case PIPECMD_FUNCTION:
-			out = appendstr (out, cmd->name, (void *) 0);
+			out = appendstr (out, cmd->name, nullptr);
 			break;
 
 		case PIPECMD_SEQUENCE: {
 			struct pipecmd_sequence *cmds = &cmd->u.sequence;
 
-			out = appendstr (out, "(", (void *) 0);
+			out = appendstr (out, "(", nullptr);
 			for (i = 0; i < cmds->ncommands; ++i) {
 				char *subout =
 				        pipecmd_tostring (cmds->commands[i]);
-				out = appendstr (out, subout, (void *) 0);
+				out = appendstr (out, subout, nullptr);
 				free (subout);
 				if (i < cmds->ncommands - 1)
-					out = appendstr (out, " && ",
-					                 (void *) 0);
+					out = appendstr (out, " && ", nullptr);
 			}
-			out = appendstr (out, ")", (void *) 0);
+			out = appendstr (out, ")", nullptr);
 
 			break;
 		}
 	}
 
 	if (cmd->cwd_fd >= 0 || cmd->cwd)
-		out = appendstr (out, ")", (void *) 0);
+		out = appendstr (out, ")", nullptr);
 
 	return out;
 }
@@ -859,8 +863,7 @@ void pipecmd_exec (pipecmd *cmd)
 			sigemptyset (&sa.sa_mask);
 			sa.sa_flags = 0;
 			if (sigaction (SIGCHLD, &sa, NULL) == -1)
-				error (FATAL, errno,
-				       "can't install SIGCHLD handler");
+				fatal (errno, "can't install SIGCHLD handler");
 
 			for (i = 0; i < cmds->ncommands; ++i) {
 				pipecmd *child = cmds->commands[i];
@@ -868,7 +871,7 @@ void pipecmd_exec (pipecmd *cmd)
 				int status;
 
 				if (pid < 0)
-					error (FATAL, errno, "fork failed");
+					fatal (errno, "fork failed");
 				if (pid == 0)
 					pipecmd_exec (child);
 				debug ("Started \"%s\", pid %d\n", child->name,
@@ -877,7 +880,7 @@ void pipecmd_exec (pipecmd *cmd)
 				while (waitpid (pid, &status, 0) < 0) {
 					if (errno == EINTR)
 						continue;
-					error (FATAL, errno, "waitpid failed");
+					fatal (errno, "waitpid failed");
 				}
 
 				debug ("  \"%s\" (%d) -> %d\n", child->name,
@@ -1168,12 +1171,12 @@ void pipeline_commands (pipeline *p, ...)
 	va_end (cmdv);
 }
 
-int _GL_ATTRIBUTE_PURE pipeline_get_ncommands (pipeline *p)
+int ATTRIBUTE_PURE pipeline_get_ncommands (pipeline *p)
 {
 	return p->ncommands;
 }
 
-pipecmd *_GL_ATTRIBUTE_PURE pipeline_get_command (pipeline *p, int n)
+pipecmd *ATTRIBUTE_PURE pipeline_get_command (pipeline *p, int n)
 {
 	if (n < 0 || n >= p->ncommands)
 		return NULL;
@@ -1190,7 +1193,7 @@ pipecmd *pipeline_set_command (pipeline *p, int n, pipecmd *cmd)
 	return prev;
 }
 
-pid_t _GL_ATTRIBUTE_PURE pipeline_get_pid (pipeline *p, int n)
+pid_t ATTRIBUTE_PURE pipeline_get_pid (pipeline *p, int n)
 {
 	assert (p->pids); /* pipeline started */
 	if (n < 0 || n >= p->ncommands)
@@ -1280,10 +1283,10 @@ char *pipeline_tostring (pipeline *p)
 
 	for (i = 0; i < p->ncommands; ++i) {
 		char *cmdout = pipecmd_tostring (p->commands[i]);
-		out = appendstr (out, cmdout, (void *) 0);
+		out = appendstr (out, cmdout, nullptr);
 		free (cmdout);
 		if (i < p->ncommands - 1)
-			out = appendstr (out, " | ", (void *) 0);
+			out = appendstr (out, " | ", nullptr);
 	}
 
 	return out;
@@ -1409,7 +1412,7 @@ static void pipeline_install_sigchld (void)
 	act.sa_flags |= SA_RESTART;
 #endif
 	if (sigaction (SIGCHLD, &act, NULL) == -1)
-		error (FATAL, errno, "can't install SIGCHLD handler");
+		fatal (errno, "can't install SIGCHLD handler");
 
 	installed = 1;
 }
@@ -1457,9 +1460,9 @@ void pipeline_start (pipeline *p)
 		sigemptyset (&sa.sa_mask);
 		sa.sa_flags = 0;
 		if (sigaction (SIGINT, &sa, &osa_sigint) < 0)
-			error (FATAL, errno, "Couldn't ignore SIGINT");
+			fatal (errno, "Couldn't ignore SIGINT");
 		if (sigaction (SIGQUIT, &sa, &osa_sigquit) < 0)
-			error (FATAL, errno, "Couldn't ignore SIGQUIT");
+			fatal (errno, "Couldn't ignore SIGQUIT");
 	}
 
 	/* Add to the table of active pipelines, so that signal handlers
@@ -1505,7 +1508,7 @@ void pipeline_start (pipeline *p)
 
 	if (p->redirect_in == REDIRECT_FD && p->want_in < 0) {
 		if (pipe (infd) < 0)
-			error (FATAL, errno, "pipe failed");
+			fatal (errno, "pipe failed");
 		last_input = infd[0];
 		p->infd = infd[1];
 	} else if (p->redirect_in == REDIRECT_FD)
@@ -1514,7 +1517,7 @@ void pipeline_start (pipeline *p)
 		assert (p->want_infile);
 		last_input = open (p->want_infile, O_RDONLY);
 		if (last_input < 0)
-			error (FATAL, errno, "can't open %s", p->want_infile);
+			fatal (errno, "can't open %s", p->want_infile);
 	}
 
 	for (i = 0; i < p->ncommands; i++) {
@@ -1525,7 +1528,7 @@ void pipeline_start (pipeline *p)
 		if (i != p->ncommands - 1 ||
 		    (p->redirect_out == REDIRECT_FD && p->want_out < 0)) {
 			if (pipe (pdes) < 0)
-				error (FATAL, errno, "pipe failed");
+				fatal (errno, "pipe failed");
 			if (i == p->ncommands - 1)
 				p->outfd = pdes[0];
 			output_read = pdes[0];
@@ -1539,7 +1542,7 @@ void pipeline_start (pipeline *p)
 				        p->want_outfile,
 				        O_WRONLY | O_CREAT | O_TRUNC, 0666);
 				if (output_write < 0)
-					error (FATAL, errno, "can't open %s",
+					fatal (errno, "can't open %s",
 					       p->want_outfile);
 			}
 		}
@@ -1556,7 +1559,7 @@ void pipeline_start (pipeline *p)
 
 		pid = fork ();
 		if (pid < 0)
-			error (FATAL, errno, "fork failed");
+			fatal (errno, "fork failed");
 		if (pid == 0) {
 			/* child */
 			if (post_fork)
@@ -1565,23 +1568,23 @@ void pipeline_start (pipeline *p)
 			/* input, reading side */
 			if (last_input != -1) {
 				if (dup2 (last_input, 0) < 0)
-					error (FATAL, errno, "dup2 failed");
+					fatal (errno, "dup2 failed");
 				if (close (last_input) < 0)
-					error (FATAL, errno, "close failed");
+					fatal (errno, "close failed");
 			}
 
 			/* output, writing side */
 			if (output_write != -1) {
 				if (dup2 (output_write, 1) < 0)
-					error (FATAL, errno, "dup2 failed");
+					fatal (errno, "dup2 failed");
 				if (close (output_write) < 0)
-					error (FATAL, errno, "close failed");
+					fatal (errno, "close failed");
 			}
 
 			/* output, reading side */
 			if (output_read != -1)
 				if (close (output_read))
-					error (FATAL, errno, "close failed");
+					fatal (errno, "close failed");
 
 			/* input from first command, writing side; must close
 			 * it in every child because it has to be created
@@ -1589,7 +1592,7 @@ void pipeline_start (pipeline *p)
 			 */
 			if (p->infd != -1)
 				if (close (p->infd))
-					error (FATAL, errno, "close failed");
+					fatal (errno, "close failed");
 
 			/* inputs and outputs from other active pipelines */
 			for (j = 0; j < n_active_pipelines; ++j) {
@@ -1616,11 +1619,11 @@ void pipeline_start (pipeline *p)
 		/* in the parent */
 		if (last_input != -1) {
 			if (close (last_input) < 0)
-				error (FATAL, errno, "close failed");
+				fatal (errno, "close failed");
 		}
 		if (output_write != -1) {
 			if (close (output_write) < 0)
-				error (FATAL, errno, "close failed");
+				fatal (errno, "close failed");
 		}
 		if (output_read != -1)
 			last_input = output_read;
@@ -1760,7 +1763,7 @@ int pipeline_wait_all (pipeline *p, int **statuses, int *n_statuses)
 			/* Eh? The pipeline was allegedly still running, so
 			 * we shouldn't have got ECHILD.
 			 */
-			error (FATAL, errno, "waitpid failed");
+			fatal (errno, "waitpid failed");
 	}
 
 	queue_sigchld = 0;
@@ -2009,7 +2012,7 @@ void pipeline_pump (pipeline *p, ...)
 			}
 			continue;
 		} else if (ret < 0)
-			error (FATAL, errno, "select");
+			fatal (errno, "select");
 
 		/* Read a block of data from each available source pipeline. */
 		for (i = 0; i < argc; ++i) {
@@ -2157,7 +2160,7 @@ next_sink:;
 
 	for (i = 0; i < argc; ++i) {
 		if (write_error[i])
-			error (FATAL, write_error[i], "write to sink %d", i);
+			fatal (write_error[i], "write to sink %d", i);
 	}
 
 	free (write_error);
@@ -2233,7 +2236,7 @@ const char *pipeline_peek (pipeline *p, size_t *len)
 	return get_block (p, len, 1);
 }
 
-size_t _GL_ATTRIBUTE_PURE pipeline_peek_size (pipeline *p)
+size_t ATTRIBUTE_PURE pipeline_peek_size (pipeline *p)
 {
 	if (!p->buffer)
 		return 0;

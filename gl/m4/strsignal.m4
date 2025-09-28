@@ -1,5 +1,6 @@
-# strsignal.m4 serial 9
-dnl Copyright (C) 2008-2020 Free Software Foundation, Inc.
+# strsignal.m4
+# serial 10
+dnl Copyright (C) 2008-2024 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -9,7 +10,7 @@ AC_DEFUN([gl_FUNC_STRSIGNAL],
   dnl Persuade glibc <string.h> to declare strsignal().
   AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
 
-  AC_REQUIRE([gl_HEADER_STRING_H_DEFAULTS])
+  AC_REQUIRE([gl_STRING_H_DEFAULTS])
   AC_REQUIRE([AC_CANONICAL_HOST]) dnl for cross-compiles
 
   AC_CHECK_DECLS_ONCE([strsignal])

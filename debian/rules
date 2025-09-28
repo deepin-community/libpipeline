@@ -8,13 +8,11 @@ include /usr/share/dpkg/pkg-info.mk
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+bindnow,+pie
 
-override_dh_auto_test:
-	# libcheck.a isn't built with -fPIC, so we have trouble on amd64 if
-	# we link with -fPIC etc. here.
-	VERBOSE=1 dh_auto_test -- LDFLAGS=
+override_dh_autoreconf:
+	dh_autoreconf ./bootstrap -- \
+		--gnulib-srcdir=/usr/share/gnulib --no-git --skip-po
 
-override_dh_auto_install:
-	dh_auto_install
+execute_after_dh_auto_install:
 	rm -f debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libpipeline.la
 
 override_dh_installdocs:
